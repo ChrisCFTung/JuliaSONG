@@ -101,7 +101,7 @@ end
 Source Distribution
 =#
 
-# default cosmo param
+# redshift up to which should be cartesian
 __zlocal = 0.01 
 
 function RedshiftDistribution(z::Real; cosmo_par::Cosmology=cosmo)
