@@ -124,7 +124,7 @@ function NSources(local_density::Real, z_max::Real; cosmo_par::Cosmology=cosmo)
     return Ntotal
 end
 
-function StandardCandleSources(flux_norm::Real, density::Real, index::Real;
+function StandardCandleFlux(flux_norm::Real, density::Real, index::Real;
                                cosmo_par::Cosmology=cosmo, z0=1.0, z_inf=10.0)
     all_sky_flux = flux_norm*4*pi
     Ntotal = NSources(density, z_inf, cosmo_par=cosmo_par)
@@ -133,6 +133,11 @@ function StandardCandleSources(flux_norm::Real, density::Real, index::Real;
                  RedshiftDistribution(z, cosmo_par=cosmo_par)/norm,
                  0, z_inf)[1]
     return all_sky_flux/Ntotal/flux_in/luminosity_distance(z0, cosmo_par=cosmo_par)^2
+end
+
+function Flux_to_NLuminosity(flux::Real, index::Real, z::Real; cosmo_par::Cosmology=cosmo)
+    dN = flux .* 4pi .* luminosity_distance.(z, cosmo_par=cosmo_par) .^ 2 ./ (1 .+ z) .^ (2.0 - index)
+    return dN
 end
 
 #=
@@ -160,16 +165,16 @@ function generate_source(density::Real, flux_norm::Real, index::Real;
     Ntotal = NSources(density, z_max)
     nsrc = rand(Poisson(Ntotal), 1)[1]
     z = z_Sampling(nsrc, z_max=z_max, cosmo_par=cosmo_par)
-    candle_flux = StandardCandleSources(flux_norm, density, index, 
+    candle_flux = StandardCandleFlux(flux_norm, density, index, 
                                         cosmo_par=cosmo_par)
-    L0 = candle_flux*luminosity_distance(1.0, cosmo_par=cosmo_par)^2
+    L0 = Flux_to_NLuminosity(candle_flux, index, 1.0)
     if lumi == nothing
         L = L0*ones(nsrc)
     else
         L = rand(lumi(L0), nsrc)
     end
     dL = dL_interpolation(cosmo_par=cosmo_par)
-    flux = L./(dL.(z).^2)
+    flux = L ./ (dL.(z) .^ 2) .* (1 .+ z) .^ (2.0-index)
     return DataFrame(Redshift=z, Flux=flux)
 end
 
