@@ -1,7 +1,10 @@
 module JuliaSONG
 using QuadGK, Interpolations
+using Distributions
 using Random
 using DataFrames
+
+include("Luminosity.jl")
 
 #=
 Evolution Models
@@ -33,7 +36,9 @@ struct Cosmology
     D_h::Real
     evol::Function
 end
-function Cosmology(;om0::Real=0.315, ode::Real=0.685, h::Real=0.674, evolution::Function=SFR)
+
+function Cosmology(;om0::Real=0.315, ode::Real=0.685, h::Real=0.674, 
+                    evolution::Function=SFR)
     c = 299792458
     ok0 = 1-om0-ode
     D_h = c/1000/100/h
@@ -143,23 +148,29 @@ function invCDF(pdf::Function, low::Real, high::Real;
     return invcdf
 end
 
-function z_Sampling(density::Real; z_max::Real=10.0,
+function z_Sampling(nsources::Int; z_max::Real=10.0,
                     cosmo_par::Cosmology=cosmo)
     pdf(z) = RedshiftDistribution(z, cosmo_par=cosmo_par)
     icdf = invCDF(pdf, 0.0, z_max)
-    Ntotal = NSources(density, z_max)
-    return icdf(rand(floor(Int, Ntotal)))
+    return icdf(rand(nsources))
 end
 
 function generate_source(density::Real, flux_norm::Real, index::Real; 
-             z_max::Real=10.0, cosmo_par::Cosmology=cosmo)
-    z = z_Sampling(density, z_max=z_max, cosmo_par=cosmo_par)
+             z_max::Real=10.0, cosmo_par::Cosmology=cosmo, lumi=nothing)
+    Ntotal = NSources(density, z_max)
+    nsrc = rand(Poisson(Ntotal), 1)[1]
+    z = z_Sampling(nsrc, z_max=z_max, cosmo_par=cosmo_par)
     candle_flux = StandardCandleSources(flux_norm, density, index, 
                                         cosmo_par=cosmo_par)
-    lumi = candle_flux*luminosity_distance(1.0, cosmo_par=cosmo_par)^2
+    L0 = candle_flux*luminosity_distance(1.0, cosmo_par=cosmo_par)^2
+    if lumi == nothing
+        L = L0*ones(nsrc)
+    else
+        L = rand(lumi(L0), nsrc)
+    end
     dL = dL_interpolation(cosmo_par=cosmo_par)
-    flux = lumi./(dL.(z).^2)
-return DataFrame(Redshift=z, Flux=flux)
+    flux = L./(dL.(z).^2)
+    return DataFrame(Redshift=z, Flux=flux)
 end
 
 end
