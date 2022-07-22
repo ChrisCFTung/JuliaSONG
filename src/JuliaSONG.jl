@@ -161,18 +161,14 @@ function z_Sampling(nsources::Int; z_max::Real=10.0,
 end
 
 function generate_source(density::Real, flux_norm::Real, index::Real; 
-             z_max::Real=10.0, cosmo_par::Cosmology=cosmo, lumi=nothing)
+             z_max::Real=10.0, cosmo_par::Cosmology=cosmo, lumi=StandardCandle)
     Ntotal = NSources(density, z_max)
     nsrc = rand(Poisson(Ntotal), 1)[1]
     z = z_Sampling(nsrc, z_max=z_max, cosmo_par=cosmo_par)
     candle_flux = StandardCandleFlux(flux_norm, density, index, 
                                         cosmo_par=cosmo_par)
     L0 = Flux_to_NLuminosity(candle_flux, index, 1.0)
-    if lumi == nothing
-        L = L0*ones(nsrc)
-    else
-        L = rand(lumi(L0), nsrc)
-    end
+    L = rand(lumi(L0), nsrc)
     dL = dL_interpolation(cosmo_par=cosmo_par)
     flux = L ./ (dL.(z) .^ 2) .* (1 .+ z) .^ (2.0-index)
     return DataFrame(Redshift=z, Flux=flux)

@@ -1,6 +1,25 @@
 using Distributions, Random
 import Base.rand
 
+struct StandardCandle{T<:Real} <: Distribution{Univariate, Continuous}
+    value::T
+    function StandardCandle{T}(value::T) where {T<:Real}
+        return new{T}(value)
+    end
+end
+
+function StandardCandle(value::Float64)
+    return StandardCandle{Float64}(value)
+end
+
+function rand(d::StandardCandle, s::Int64)
+    return d.value .* ones(s)
+end
+
+#= 
+LogNormal
+=#
+
 function LogNormLumin(L0::Real, sigma::Real)
     mu = log(L0) - sigma^2/2
     return LogNormal(mu, sigma)
